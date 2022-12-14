@@ -1,59 +1,81 @@
-from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
+import logging
 
 from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel
-from sqlalchemy import select, update, delete
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.db import Base
-from schemas.entity import UrlDataCreate
+from core.keygen import create_unique_random_key
+from models.url_info import Redirect, UrlInfo
+from schemas.url import UrlDataBase
 
-ModelType = TypeVar("ModelType", bound=Base)
-CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
-# UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
-
-
-class Repository:
-
-    def get(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def get_multi(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def create(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def update(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def delete(self, *args, **kwargs):
-        raise NotImplementedError
+log = logging.getLogger(__name__)
 
 
-class RepositoryDB(Repository, Generic[ModelType, CreateSchemaType]):
-    def __init__(self, model: Type[ModelType]):
-        self._model = model
-
-    async def get(self, db: AsyncSession, url_obj: UrlDataCreate) -> Optional[ModelType]:
-        obj_in_data = jsonable_encoder(url_obj)
-        db_obj = self._model(**obj_in_data)
-        print(f"{db_obj.long_url=}")
-        statement = select(self._model).where(self._model.long_url == db_obj.long_url)
-        results = await db.execute(statement=statement)
-        return results.scalar_one_or_none()
-
-    async def get_multi(
-        self, db: AsyncSession, *, skip=0, limit=100
-    ) -> List[ModelType]:
-        statement = select(self._model).offset(skip).limit(limit)
-        results = await db.execute(statement=statement)
-        return results.scalars().all()
-
-    async def create(self, db: AsyncSession, *, url_obj: CreateSchemaType) -> ModelType:
-        obj_in_data = jsonable_encoder(url_obj)
-        db_obj = self._model(**obj_in_data)
+class RepositoryDB:
+    async def delete_url_info(self, db: AsyncSession, url_id: str):
+        log.info("Delete url info CRUD start")
+        db_obj = await self.get_by_url_id(url_id=url_id, db=db)
+        db_obj.deleted = True
         db.add(db_obj)
         await db.commit()
         await db.refresh(db_obj)
         return db_obj
+
+    async def get_stats(
+        self,
+        db: AsyncSession,
+        url_id: str,
+        full_info: bool,
+        offset: int,
+        max_result: int,
+    ):
+        log.info("Get stats CRUD start")
+        db_obj = await self.get_by_url_id(db=db, url_id=url_id)
+        statement = select(func.count(Redirect.created_at)).where(
+            Redirect.url_info_id == db_obj.id
+        )
+        count_redirects = (await db.execute(statement=statement)).all()
+        stats = {"count redirects": count_redirects[0]["count"]}
+        if full_info:
+            statement = select(Redirect.created_at,
+                               Redirect.person_info).where(
+                Redirect.url_info_id == db_obj.id
+            )
+            information = (await db.execute(statement=statement)).all()
+            stats["full-info"] = information[offset: offset + max_result]
+        return stats
+
+    async def add_redirect(self, db: AsyncSession, url_obj: UrlInfo,
+                           info: str):
+        log.info("Add redirect CRUD start")
+        db_obj = Redirect(person_info=info, url_info_id=url_obj.id)
+        db.add(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
+        return db_obj
+
+    async def get_by_url_id(self, db: AsyncSession, url_id: str):
+        log.info("Get_by_url_id CRUD start")
+        statement = select(UrlInfo).where(UrlInfo.url_id == url_id)
+        results = await db.execute(statement=statement)
+        return results.scalar_one_or_none()
+
+    async def get(self, db: AsyncSession, url_obj: UrlDataBase):
+        log.info("Get CRUD start")
+        obj_in_data = jsonable_encoder(url_obj)
+        db_obj = UrlInfo(**obj_in_data)
+        statement = select(UrlInfo).where(UrlInfo.long_url == db_obj.long_url)
+        results = await db.execute(statement=statement)
+        return results.scalar_one_or_none()
+
+    async def create(self, db: AsyncSession, url_obj: UrlDataBase):
+        log.info("Create CRUD start")
+        db_obj = UrlInfo(url_id=create_unique_random_key(),
+                         long_url=url_obj.long_url)
+        db.add(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
+        return db_obj
+
+
+url_data_crud = RepositoryDB()

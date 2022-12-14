@@ -5,16 +5,13 @@ from pydantic import BaseSettings, PostgresDsn
 
 from core.logger import LOGGING
 
-# Применяем настройки логирования
-logging_config.dictConfig(LOGGING)
+PROJECT_NAME = os.getenv("PROJECT_NAME", "ShortUrlMaker")
+PROJECT_HOST = os.getenv("PROJECT_HOST", "0.0.0.0")
+PROJECT_PORT = os.getenv("PROJECT_PORT", "8001")
 
-# Название проекта. Используется в Swagger-документации
-PROJECT_NAME = os.getenv('PROJECT_NAME', 'ShortUrlMaker')
-PROJECT_HOST = os.getenv('PROJECT_HOST', '0.0.0.0')
-PROJECT_PORT = os.getenv('PROJECT_PORT', '8000')
-
-# Корень проекта
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+logging_config.dictConfig(LOGGING)
 
 
 class AppSettings(BaseSettings):
@@ -22,7 +19,7 @@ class AppSettings(BaseSettings):
     database_dsn: PostgresDsn
 
     class Config:
-        env_file = '.env'
+        env_file = ".env"
 
 
 app_settings = AppSettings()

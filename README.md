@@ -1,3 +1,40 @@
+Steps to run:
+1. Run Postgres
+```
+docker run \
+  --rm   \
+  --name postgres-fastapi \
+  -p 5432:5432 \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=collection \
+  -d postgres:14.5 
+  ```
+2. Install requirements
+```
+pip install -r requirements.txt
+```
+3. Move to src directory
+```angular2html
+cd src
+```
+4. Run migrations
+```angular2html
+alembic revision --autogenerate -m 01_initial-db
+```
+5. Apply migrations
+```angular2html
+alembic upgrade head
+```
+6. Run app
+```angular2html
+python3 main.py
+```
+7. Go to docs
+```angular2html
+http://127.0.0.1:8001/api/openapi
+```
+___________________
 # Проектное задание четвертого спринта
 
 Спроектируйте и реализуйте сервис для создания сокращенной формы передаваемых URL и анализа активности их использования.
@@ -47,10 +84,10 @@ GET /<url_id>/status?[full-info]&&[max-result=10]&&[offset=0]
 
 ### Дополнительные требования (отметить [Х] выбранные пункты):
 
-- [ ] (1 балл) Реализуйте метод `GET /ping`, который возвращает информацию о статусе доступности БД.
-- [ ] (1 балл) Реализуйте возможность "удаления" сохраненного URL. Запись должна оставаться, но помечаться как удаленная. При попытке получения полного URL возвращать ответ с кодом `410 Gone`.
+- [X] (1 балл) Реализуйте метод `GET /ping`, который возвращает информацию о статусе доступности БД.
+- [X] (1 балл) Реализуйте возможность "удаления" сохраненного URL. Запись должна оставаться, но помечаться как удаленная. При попытке получения полного URL возвращать ответ с кодом `410 Gone`.
 
-- [ ] (2 балла) Реализуйте **middlware**, блокирующий доступ к сервису запросов из запрещенных подсетей (black list).
+- [X] (2 балла) Реализуйте **middlware**, блокирующий доступ к сервису запросов из запрещенных подсетей (black list).
 - [ ] (2 балла) Реализуйте возможность передавать ссылки пачками (batch upload).
 
 <details>

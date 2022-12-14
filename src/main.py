@@ -1,25 +1,38 @@
-import logging
-
-import uvicorn
-from fastapi import FastAPI
+import uvicorn as uvicorn
+from fastapi import FastAPI, Request, status
 from fastapi.responses import ORJSONResponse
+from starlette.responses import JSONResponse
 
 from api.v1 import base
 from core import config
-from core.logger import LOGGING
 
 app = FastAPI(
     title=config.app_settings.app_title,
-    docs_url='/api/openapi',
-    openapi_url='/api/openapi.json',
+    docs_url="/api/openapi",
+    openapi_url="/api/openapi.json",
     default_response_class=ORJSONResponse,
 )
+app.include_router(base.router, prefix="/api/v1")
 
-app.include_router(base.router, prefix='/api/v1')
+BLACKLISTED_IPS = []
 
-if __name__ == '__main__':
+
+@app.middleware("http")
+async def validate_ip(request: Request, call_next):
+    # Get client IP
+    ip = str(request.client.host)
+
+    if ip in BLACKLISTED_IPS:
+        data = {"message": f"IP {ip} is not allowed to access this resource."}
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
+                            content=data)
+    # Proceed if IP is allowed
+    return await call_next(request)
+
+
+if __name__ == "__main__":
     uvicorn.run(
-        'main:app',
+        "main:app",
         host=config.PROJECT_HOST,
         port=config.PROJECT_PORT,
     )
