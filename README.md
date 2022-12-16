@@ -1,36 +1,13 @@
 Steps to run:
-1. Run Postgres
+1. Run Docker-compose
 ```
-docker run \
-  --rm   \
-  --name postgres-fastapi \
-  -p 5432:5432 \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=collection \
-  -d postgres:14.5 
+docker-compose up --build
   ```
-2. Install requirements
-```
-pip install -r requirements.txt
-```
-3. Move to src directory
+2. Apply migrations
 ```angular2html
-cd src
+docker exec backend alembic upgrade head
 ```
-4. Run migrations
-```angular2html
-alembic revision --autogenerate -m 01_initial-db
-```
-5. Apply migrations
-```angular2html
-alembic upgrade head
-```
-6. Run app
-```angular2html
-python3 main.py
-```
-7. Go to docs
+3. Go to docs
 ```angular2html
 http://127.0.0.1:8001/api/openapi
 ```

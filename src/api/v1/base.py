@@ -1,14 +1,15 @@
 import logging
 from typing import Union
 
-from fastapi import APIRouter, Depends, Header, responses
+from fastapi import APIRouter, Depends, Header, Query, responses
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from starlette.responses import Response
 
-from core.config import PROJECT_PORT
-from core.db_availability import check_db_connect
+from core.config import app_settings
 from db.db import get_session
+from schemas.responses import (DelUrl, RespCheckDb, RespMakeShort,
+                               RespRedirect, RespStats)
 from schemas.url import UrlDataBase
 from services.base import url_data_crud
 
@@ -16,36 +17,41 @@ router = APIRouter()
 log = logging.getLogger(__name__)
 
 
-@router.delete("/{url_id}")
+@router.delete("/{url_id}", response_model=DelUrl,
+               description="Mark url as deleted.")
 async def get_long_url(url_id: str, db: AsyncSession = Depends(get_session)):
     log.info("Start get_long_url")
     url_obj = await url_data_crud.delete_url_info(db=db, url_id=url_id)
-    return {"Deleted": f"{url_obj.deleted}"}
+    return DelUrl(deleted=url_obj.deleted)
 
 
-@router.get("/ping")
-async def ping_to_database():
+@router.get("/ping", response_model=RespCheckDb,
+            description="Check status database.")
+async def ping_to_database(db: AsyncSession = Depends(get_session)):
     log.info("Start ping to database")
-    return {"Availability": check_db_connect()}
+    status = await url_data_crud.check_db(db=db)
+    return RespCheckDb(status=status)
 
 
-@router.get("/{url_id}/stats")
+@router.get("/{url_id}/stats", response_model=RespStats,
+            description="Get statistics about url.")
 async def get_stats_url(
     url_id: str,
     db: AsyncSession = Depends(get_session),
-    offset: int = 0,
-    max_result: int = 10,
-    full_info: bool = False,
+    offset: Union[int, None] = Query(default=0, ge=0),
+    max_result: Union[int, None] = Query(default=10, ge=1, lt=50),
+    full_info: bool = False
 ):
     log.info("Get stats start")
-    count_red = await url_data_crud.get_stats(
+    stats = await url_data_crud.get_stats(
         db=db, url_id=url_id, full_info=full_info, offset=offset,
         max_result=max_result
     )
-    return {"res": count_red}
+    return RespStats(stats=stats)
 
 
-@router.get("/{url_id}")
+@router.get("/{url_id}", response_model=RespRedirect,
+            description="Redirect to long url on short url.")
 async def get_long_url(
     url_id: str,
     db: AsyncSession = Depends(get_session),
@@ -69,7 +75,9 @@ async def get_long_url(
     )
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=RespMakeShort,
+             status_code=status.HTTP_201_CREATED,
+             description="Create object in service.")
 async def make_short_url(url_obj: UrlDataBase,
                          db: AsyncSession = Depends(get_session)):
     log.info("Start make_short_url")
@@ -78,4 +86,5 @@ async def make_short_url(url_obj: UrlDataBase,
         log.info("Not exist obj in database")
         db_obj = await url_data_crud.create(db=db, url_obj=url_obj)
     log.info("Created url obj")
-    return {"short_url": f"127.0.0.1:{PROJECT_PORT}/api/v1/{db_obj.url_id}"}
+    return RespMakeShort(short_url=f"127.0.0.1:{app_settings.project_port}"
+                                   f"/api/v1/{db_obj.url_id}")

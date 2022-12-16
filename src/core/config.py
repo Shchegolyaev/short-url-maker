@@ -5,10 +5,6 @@ from pydantic import BaseSettings, PostgresDsn
 
 from core.logger import LOGGING
 
-PROJECT_NAME = os.getenv("PROJECT_NAME", "ShortUrlMaker")
-PROJECT_HOST = os.getenv("PROJECT_HOST", "0.0.0.0")
-PROJECT_PORT = os.getenv("PROJECT_PORT", "8001")
-
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 logging_config.dictConfig(LOGGING)
@@ -17,6 +13,8 @@ logging_config.dictConfig(LOGGING)
 class AppSettings(BaseSettings):
     app_title: str = "ShortUrlMaker"
     database_dsn: PostgresDsn
+    project_host: str = "0.0.0.0"
+    project_port: int = 8000
 
     class Config:
         env_file = ".env"

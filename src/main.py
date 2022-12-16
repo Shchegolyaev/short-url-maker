@@ -4,10 +4,10 @@ from fastapi.responses import ORJSONResponse
 from starlette.responses import JSONResponse
 
 from api.v1 import base
-from core import config
+from core.config import app_settings
 
 app = FastAPI(
-    title=config.app_settings.app_title,
+    title=app_settings.app_title,
     docs_url="/api/openapi",
     openapi_url="/api/openapi.json",
     default_response_class=ORJSONResponse,
@@ -33,6 +33,6 @@ async def validate_ip(request: Request, call_next):
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",
-        host=config.PROJECT_HOST,
-        port=config.PROJECT_PORT,
+        host=app_settings.project_host,
+        port=app_settings.project_port,
     )

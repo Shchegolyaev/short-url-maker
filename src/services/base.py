@@ -12,6 +12,18 @@ log = logging.getLogger(__name__)
 
 
 class RepositoryDB:
+
+    async def check_db(self, db: AsyncSession):
+        status = "Available"
+        try:
+            statement = select(UrlInfo)
+            await db.execute(statement=statement)
+            log.info("Database is available")
+        except Exception:
+            log.info("Database not available")
+            status = "Not available"
+        return status
+
     async def delete_url_info(self, db: AsyncSession, url_id: str):
         log.info("Delete url info CRUD start")
         db_obj = await self.get_by_url_id(url_id=url_id, db=db)
